@@ -225,7 +225,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             const SizedBox(height: 12),
                             Text('レシートがまだありません', style: TextStyle(color: Colors.grey.shade600)),
                             const SizedBox(height: 4),
-                            Text('下の「サイレント撮影」または「写真選択」から読み取れます', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                            Text('下の「レシート撮影」または「写真選択」から読み取れます', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
                           ],
                         ),
                       )
@@ -284,7 +284,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: FilledButton.icon(
                   onPressed: _isLoading ? null : _openSilentCamera,
                   icon: const Icon(Icons.camera_alt),
-                  label: const Text('サイレント撮影'),
+                  label: const Text('レシート撮影'), // ★ここを健全な「レシート撮影」に変更！
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.teal,
                     padding: const EdgeInsets.symmetric(vertical: 14),
