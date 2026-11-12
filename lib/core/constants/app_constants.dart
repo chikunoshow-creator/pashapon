@@ -1,12 +1,12 @@
 class AppConstants {
   // アプリ基本情報
   static const String appName = 'パシャぽん';
-  static const String appVersion = '1.0.1'; // ★バージョン明記
+  static const String appVersion = '1.1.0'; // ★v1.1.0に更新！
   static const String appTagline = '撮って、まとめて、サクッと共有';
 
   // Groq API 設定
   static const String groqApiEndpoint = 'https://api.groq.com/openai/v1/chat/completions';
-  static const String defaultGroqModel = 'meta-llama/llama-4-scout-17b-16e-instruct';
+  static const String defaultGroqModel = 'qwen/qwen3.8-27b';
 
   // ストレージの保存キー
   static const String prefKeySettings = 'pashapon_settings';

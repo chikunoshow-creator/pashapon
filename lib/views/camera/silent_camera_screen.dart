@@ -2,7 +2,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:html' as html;
-import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 
@@ -35,17 +35,14 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
         ..style.height = '100%'
         ..style.objectFit = 'cover';
 
-      // iOS Safariでインライン再生させるための必須属性
       _videoElement!.setAttribute('playsinline', 'true');
       _videoElement!.setAttribute('webkit-playsinline', 'true');
 
-      // プラットフォームビューに登録
       ui_web.platformViewRegistry.registerViewFactory(
         _viewId,
         (int id) => _videoElement!,
       );
 
-      // 背面カメラを優先してストリーム取得
       final mediaDevices = html.window.navigator.mediaDevices;
       if (mediaDevices == null) {
         throw Exception('このブラウザはカメラアクセスをサポートしていません。');
@@ -53,11 +50,11 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
 
       final stream = await mediaDevices.getUserMedia({
         'video': {
-          'facingMode': {'ideal': 'environment'}, // 背面カメラ
+          'facingMode': {'ideal': 'environment'},
           'width': {'ideal': 1920},
           'height': {'ideal': 1080},
         },
-        'audio': false, // 音声不要（完全無音）
+        'audio': false,
       });
 
       _mediaStream = stream;
@@ -85,17 +82,16 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
 
     if (videoWidth == 0 || videoHeight == 0) return;
 
-    // Canvasを使って無音で現在のフレームを描画・切り出し
+    // ★重要：枠でトリミングせず、フル解像度の全体をそのままキャプチャ！
     final canvas = html.CanvasElement(width: videoWidth, height: videoHeight);
     canvas.context2D.drawImage(_videoElement!, 0, 0);
 
-    // 軽量JPEGデータURL（シャッター音なし）
     final dataUrl = canvas.toDataUrl('image/jpeg', 0.85);
     final base64String = dataUrl.split(',').last;
     final bytes = base64Decode(base64String);
 
     _stopCamera();
-    Navigator.pop(context, bytes); // 撮影したバイト列を返却
+    Navigator.pop(context, bytes);
   }
 
   void _stopCamera() {
@@ -114,11 +110,16 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final frameWidth = screenSize.width * 0.76;
+    final frameHeight = screenSize.height * 0.56;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
+          // 1. カメラプレビュー
           if (_isInitialized)
             HtmlElementView(viewType: _viewId)
           else if (_errorMessage != null)
@@ -137,7 +138,63 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
               child: CircularProgressIndicator(color: Colors.teal),
             ),
 
-          // 上部閉じるボタン
+          // 2. ★縦長点線ガイド枠 ＆ 案内テキスト（オーバーレイ）
+          if (_isInitialized)
+            SafeArea(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 案内テキストバブル
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.65),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white24, width: 1),
+                      ),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'レシートを枠内に合わせてください',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            '※長いレシートは少し離して撮影してください',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 点線の縦長フレーム
+                    CustomPaint(
+                      size: Size(frameWidth, frameHeight),
+                      painter: _DashedRRectPainter(
+                        color: Colors.white.withOpacity(0.75),
+                        strokeWidth: 2.0,
+                        dashWidth: 8.0,
+                        dashSpace: 6.0,
+                        radius: 16.0,
+                      ),
+                    ),
+                    const SizedBox(height: 70), // 下部シャッターボタンとの干渉避け
+                  ],
+                ),
+              ),
+            ),
+
+          // 3. 左上閉じるボタン
           SafeArea(
             child: Align(
               alignment: Alignment.topLeft,
@@ -157,13 +214,13 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
             ),
           ),
 
-          // 下部シャッターボタン
+          // 4. 下部シャッターボタン
           if (_isInitialized)
             Align(
               alignment: Alignment.bottomCenter,
               child: SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 30),
+                  padding: const EdgeInsets.only(bottom: 24),
                   child: GestureDetector(
                     onTap: _capturePhoto,
                     child: Container(
@@ -193,4 +250,52 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
       ),
     );
   }
+}
+
+/// 滑らかな角丸の破線を描くカスタムペインター
+class _DashedRRectPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double dashWidth;
+  final double dashSpace;
+  final double radius;
+
+  _DashedRRectPainter({
+    required this.color,
+    required this.strokeWidth,
+    required this.dashWidth,
+    required this.dashSpace,
+    required this.radius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Radius.circular(radius),
+    );
+
+    final path = Path()..addRRect(rrect);
+
+    for (final ui.PathMetric metric in path.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final length = dashWidth;
+        if (distance + length > metric.length) {
+          canvas.drawPath(metric.extractPath(distance, metric.length), paint);
+          break;
+        }
+        canvas.drawPath(metric.extractPath(distance, distance + length), paint);
+        distance += dashWidth + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
