@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import '../core/constants/app_constants.dart';
 import '../models/app_settings.dart';
+import '../models/error_log.dart';
+import 'storage_service.dart';
 
 class GroqParsedResult {
   final String date;
@@ -16,12 +19,16 @@ class GroqParsedResult {
 }
 
 class GroqService {
+  final StorageService _storage = StorageService();
+
   Future<GroqParsedResult> analyzeReceipt({
     required String base64Image,
     required AppSettings settings,
   }) async {
     if (!settings.isConfigured) {
-      throw Exception('Groq APIキーが設定されていません。右上の歯車アイコンからキーを入力してください。');
+      const msg = 'Groq APIキーが設定されていません。右上の設定から登録してください。';
+      await _recordLog('ConfigError', msg, null);
+      throw Exception(msg);
     }
 
     final uri = Uri.parse(AppConstants.groqApiEndpoint);
@@ -31,11 +38,12 @@ class GroqService {
     };
 
     final imageUrl = 'data:image/jpeg;base64,$base64Image';
+    final activeModel = settings.modelName.trim().isNotEmpty
+        ? settings.modelName.trim()
+        : AppConstants.defaultGroqModel;
 
     final body = jsonEncode({
-      'model': settings.modelName.trim().isNotEmpty
-          ? settings.modelName.trim()
-          : AppConstants.defaultGroqModel,
+      'model': activeModel,
       'messages': [
         {
           'role': 'user',
@@ -48,21 +56,36 @@ class GroqService {
       'temperature': 0.1,
     });
 
-    final response = await http.post(uri, headers: headers, body: body);
+    http.Response response;
+    try {
+      response = await http.post(uri, headers: headers, body: body);
+    } catch (e) {
+      await _recordLog('NetworkError', 'Groq APIへの通信に失敗しました', e.toString());
+      rethrow;
+    }
 
     if (response.statusCode != 200) {
       final errorBody = utf8.decode(response.bodyBytes);
-      throw Exception('Groq APIエラー (${response.statusCode}): $errorBody');
+      final logMessage = 'Groq APIエラー (HTTP ${response.statusCode})';
+      await _recordLog('ApiError', logMessage, 'Model: $activeModel\nResponse: $errorBody');
+      throw Exception('$logMessage: $errorBody');
     }
 
     final Map<String, dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
     final String? rawContent = responseData['choices']?[0]?['message']?['content'];
 
     if (rawContent == null || rawContent.isEmpty) {
-      throw Exception('Groq APIから空の応答が返されました。');
+      const msg = 'Groq APIから空の応答が返されました。';
+      await _recordLog('EmptyResponse', msg, responseData.toString());
+      throw Exception(msg);
     }
 
-    return _parseJsonResponse(rawContent);
+    try {
+      return _parseJsonResponse(rawContent);
+    } catch (e) {
+      await _recordLog('ParseError', 'JSON解析失敗', 'Raw content: $rawContent\nError: $e');
+      rethrow;
+    }
   }
 
   GroqParsedResult _parseJsonResponse(String rawContent) {
@@ -77,19 +100,26 @@ class GroqService {
     }
     cleaned = cleaned.trim();
 
-    try {
-      final Map<String, dynamic> jsonMap = jsonDecode(cleaned);
-      final date = jsonMap['date']?.toString() ?? '';
-      final store = jsonMap['store']?.toString() ?? '不明な店舗';
-      final amount = (jsonMap['amount'] as num?)?.toInt() ?? 0;
+    final Map<String, dynamic> jsonMap = jsonDecode(cleaned);
+    final date = jsonMap['date']?.toString() ?? '';
+    final store = jsonMap['store']?.toString() ?? '不明な店舗';
+    final amount = (jsonMap['amount'] as num?)?.toInt() ?? 0;
 
-      return GroqParsedResult(
-        date: date.isNotEmpty ? date : DateTime.now().toIso8601String().substring(0, 10),
-        store: store,
-        amount: amount,
-      );
-    } catch (_) {
-      throw Exception('AIの応答をJSONとして解釈できませんでした: $cleaned');
-    }
+    return GroqParsedResult(
+      date: date.isNotEmpty ? date : DateTime.now().toIso8601String().substring(0, 10),
+      store: store,
+      amount: amount,
+    );
+  }
+
+  Future<void> _recordLog(String type, String message, String? details) async {
+    final now = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    await _storage.addErrorLog(ErrorLog(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      timestamp: now,
+      errorType: type,
+      message: message,
+      details: details,
+    ));
   }
 }

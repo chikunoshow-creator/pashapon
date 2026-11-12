@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/app_constants.dart';
 import '../../providers/settings_provider.dart';
+import '../widgets/error_log_dialog.dart';
 
 class SettingsDialog extends ConsumerStatefulWidget {
   const SettingsDialog({super.key});
@@ -18,7 +20,9 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     super.initState();
     final settings = ref.read(settingsProvider);
     _apiKeyController = TextEditingController(text: settings.apiKey);
-    _modelController = TextEditingController(text: settings.modelName);
+    _modelController = TextEditingController(
+      text: settings.modelName.isNotEmpty ? settings.modelName : AppConstants.defaultGroqModel,
+    );
   }
 
   @override
@@ -38,7 +42,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Groq Console で取得した無料APIキー（gsk_...）を入力してください。端末内のみに保存されます。',
+              'Groq Console で取得した無料APIキー（gsk_...）を入力してください。端末内のみに安全に保存されます。',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),
@@ -56,8 +60,16 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               decoration: const InputDecoration(
                 labelText: 'モデル名',
                 border: OutlineInputBorder(),
-                helperText: '例: llama-3.2-11b-vision-preview',
+                helperText: '推奨: ${AppConstants.defaultGroqModel}',
               ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.bug_report, size: 18),
+              label: const Text('エラーログを確認する'),
+              onPressed: () {
+                showDialog(context: context, builder: (_) => const ErrorLogDialog());
+              },
             ),
           ],
         ),

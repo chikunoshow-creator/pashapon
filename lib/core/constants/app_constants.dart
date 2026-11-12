@@ -1,16 +1,24 @@
 class AppConstants {
+  // アプリ基本情報
   static const String appName = 'パシャぽん';
   static const String appTagline = '撮って、まとめて、サクッと共有';
 
+  // Groq API 設定
   static const String groqApiEndpoint = 'https://api.groq.com/openai/v1/chat/completions';
-  static const String defaultGroqModel = 'llama-3.2-11b-vision-preview';
+  
+  // ★最新のGroq公式推奨Visionモデル（旧llama-3.2-11bは廃止済み）
+  static const String defaultGroqModel = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
+  // ストレージの保存キー
   static const String prefKeySettings = 'pashapon_settings';
   static const String prefKeyReceipts = 'pashapon_receipts';
+  static const String prefKeyErrorLogs = 'pashapon_error_logs';
 
+  // 画像圧縮設定
   static const int imageMaxDimension = 900;
   static const int imageCompressQuality = 75;
 
+  // Groqに送るシステムプロンプト
   static const String receiptAnalysisPrompt = '''
 あなたは優秀なレシート読取AIです。
 提供されたレシート画像から、次の3つの項目のみを抽出し、指定のJSON形式で出力してください。

@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +12,9 @@ import '../providers/receipt_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/groq_service.dart';
 import '../services/image_service.dart';
+import 'camera/silent_camera_screen.dart';
 import 'settings/settings_dialog.dart';
+import 'widgets/error_log_dialog.dart';
 import 'widgets/receipt_card.dart';
 import 'widgets/receipt_edit_modal.dart';
 import 'widgets/summary_header.dart';
@@ -29,7 +32,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isLoading = false;
   String _loadingMessage = '';
 
-  Future<void> _processImage(ImageSource source) async {
+  // ギャラリーからの画像選択
+  Future<void> _processGalleryImage() async {
+    final bytes = await _imageService.pickImage(ImageSource.gallery);
+    if (bytes == null) return;
+    await _analyzeBytes(bytes);
+  }
+
+  // ★完全無音カメラを起動
+  Future<void> _openSilentCamera() async {
+    final Uint8List? capturedBytes = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SilentCameraScreen()),
+    );
+    if (capturedBytes == null) return;
+    await _analyzeBytes(capturedBytes);
+  }
+
+  // 画像圧縮＆AI解析の共通処理
+  Future<void> _analyzeBytes(Uint8List rawBytes) async {
     final settings = ref.read(settingsProvider);
     if (!settings.isConfigured) {
       _showSettings();
@@ -40,15 +61,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     try {
-      final bytes = await _imageService.pickImage(source);
-      if (bytes == null) return;
-
       setState(() {
         _isLoading = true;
         _loadingMessage = '画像を圧縮中...';
       });
 
-      final base64Image = await _imageService.compressAndEncodeBase64(bytes);
+      final base64Image = await _imageService.compressAndEncodeBase64(rawBytes);
 
       setState(() {
         _loadingMessage = 'AI解析中...';
@@ -74,7 +92,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('エラー: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('解析失敗: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'ログ確認',
+              textColor: Colors.white,
+              onPressed: _showErrorLogs,
+            ),
+          ),
         );
       }
     } finally {
@@ -88,6 +115,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _showSettings() {
     showDialog(context: context, builder: (_) => const SettingsDialog());
+  }
+
+  void _showErrorLogs() {
+    showDialog(context: context, builder: (_) => const ErrorLogDialog());
   }
 
   void _shareReceipts() async {
@@ -115,7 +146,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       await Share.share(text, subject: 'レシート一覧');
     } catch (_) {
-      // Web Share非対応時のフォールバック
       await Clipboard.setData(ClipboardData(text: text));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -157,6 +187,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text(AppConstants.appName, style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          // ★エラーログ閲覧アイコン
+          IconButton(
+            icon: const Icon(Icons.bug_report_outlined),
+            tooltip: 'エラーログ',
+            onPressed: _showErrorLogs,
+          ),
           IconButton(
             icon: const Icon(Icons.share),
             tooltip: 'LINE等へ共有',
@@ -189,7 +225,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             const SizedBox(height: 12),
                             Text('レシートがまだありません', style: TextStyle(color: Colors.grey.shade600)),
                             const SizedBox(height: 4),
-                            Text('下の「撮影」または「画像選択」から読み取れます', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                            Text('下の「サイレント撮影」または「写真選択」から読み取れます', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
                           ],
                         ),
                       )
@@ -235,19 +271,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _isLoading ? null : () => _processImage(ImageSource.gallery),
+                  onPressed: _isLoading ? null : _processGalleryImage,
                   icon: const Icon(Icons.photo_library),
                   label: const Text('写真選択'),
                   style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                 ),
               ),
               const SizedBox(width: 8),
+              // ★無音カメラ起動ボタン
               Expanded(
                 flex: 2,
                 child: FilledButton.icon(
-                  onPressed: _isLoading ? null : () => _processImage(ImageSource.camera),
+                  onPressed: _isLoading ? null : _openSilentCamera,
                   icon: const Icon(Icons.camera_alt),
-                  label: const Text('レシート撮影'),
+                  label: const Text('サイレント撮影'),
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.teal,
                     padding: const EdgeInsets.symmetric(vertical: 14),
