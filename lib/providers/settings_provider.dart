@@ -4,20 +4,25 @@ import '../services/storage_service.dart';
 
 final storageServiceProvider = Provider((ref) => StorageService());
 
+// 初期読み込み完了フラグ
+final settingsInitializedProvider = StateProvider<bool>((ref) => false);
+
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
   final storage = ref.watch(storageServiceProvider);
-  return SettingsNotifier(storage);
+  return SettingsNotifier(storage, ref);
 });
 
 class SettingsNotifier extends StateNotifier<AppSettings> {
   final StorageService _storage;
+  final Ref _ref;
 
-  SettingsNotifier(this._storage) : super(AppSettings()) {
+  SettingsNotifier(this._storage, this._ref) : super(AppSettings()) {
     _load();
   }
 
   Future<void> _load() async {
     state = await _storage.loadSettings();
+    _ref.read(settingsInitializedProvider.notifier).state = true;
   }
 
   Future<void> updateSettings({required String apiKey, required String modelName}) async {

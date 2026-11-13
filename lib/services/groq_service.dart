@@ -7,14 +7,18 @@ import '../models/error_log.dart';
 import 'storage_service.dart';
 
 class GroqParsedResult {
+  final bool isReceipt;
   final String date;
   final String store;
   final int amount;
+  final String reason;
 
   GroqParsedResult({
+    required this.isReceipt,
     required this.date,
     required this.store,
     required this.amount,
+    required this.reason,
   });
 }
 
@@ -101,14 +105,18 @@ class GroqService {
     cleaned = cleaned.trim();
 
     final Map<String, dynamic> jsonMap = jsonDecode(cleaned);
+    final isReceipt = jsonMap['is_receipt'] == true;
     final date = jsonMap['date']?.toString() ?? '';
     final store = jsonMap['store']?.toString() ?? '不明な店舗';
     final amount = (jsonMap['amount'] as num?)?.toInt() ?? 0;
+    final reason = jsonMap['reason']?.toString() ?? 'OK';
 
     return GroqParsedResult(
+      isReceipt: isReceipt,
       date: date.isNotEmpty ? date : DateTime.now().toIso8601String().substring(0, 10),
       store: store,
       amount: amount,
+      reason: reason,
     );
   }
 

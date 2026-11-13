@@ -31,15 +31,177 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final GroqService _groqService = GroqService();
   bool _isLoading = false;
   String _loadingMessage = '';
+  bool _hasCheckedInitialKey = false;
 
-  // ギャラリーからの画像選択
+  @override
+  Widget build(BuildContext context) {
+    final receipts = ref.watch(receiptListProvider);
+    final isInitialized = ref.watch(settingsInitializedProvider);
+    final settings = ref.watch(settingsProvider);
+
+    // ★【修正】設定読み込みが完全に完了した初回のみ、キー未設定ならダイアログを開く
+    if (isInitialized && !_hasCheckedInitialKey) {
+      _hasCheckedInitialKey = true;
+      if (!settings.isConfigured) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showSettings();
+        });
+      }
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(AppConstants.appName, style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bug_report_outlined),
+            tooltip: 'エラーログ',
+            onPressed: _showErrorLogs,
+          ),
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'LINE等へ共有',
+            onPressed: _shareReceipts,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            tooltip: '一括消去',
+            onPressed: receipts.isEmpty ? null : _confirmClearAll,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: '設定',
+            onPressed: _showSettings,
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              const SummaryHeader(),
+              Expanded(
+                child: receipts.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.receipt_long, size: 64, color: Colors.teal.shade200),
+                              const SizedBox(height: 16),
+                              const Text(
+                                '財布にレシート溜まってませんか？',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'いまパシャッと撮っておくだけで、\n後からの家計簿入力が爆速でラクになりますよ！',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey.shade600, fontSize: 13, height: 1.4),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                '👇 下のボタンから撮影・選択してください',
+                                style: TextStyle(color: Colors.teal.shade700, fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: receipts.length,
+                        itemBuilder: (context, index) {
+                          final item = receipts[index];
+                          return ReceiptCard(
+                            item: item,
+                            onUpdate: (updated) => ref.read(receiptListProvider.notifier).updateReceipt(updated),
+                            onDelete: () => ref.read(receiptListProvider.notifier).deleteReceipt(item.id),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.black45,
+              child: Center(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(_loadingMessage, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _processGalleryImage,
+                  icon: const Icon(Icons.photo_library),
+                  label: const Text('写真選択'),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: FilledButton.icon(
+                  onPressed: _isLoading ? null : _openSilentCamera,
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('レシート撮影'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.outlined(
+                tooltip: '手入力',
+                icon: const Icon(Icons.edit),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => ReceiptEditModal(
+                      onSave: (date, store, amount) {
+                        ref.read(receiptListProvider.notifier).addReceipt(
+                              date: date,
+                              store: store,
+                              amount: amount,
+                            );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _processGalleryImage() async {
     final bytes = await _imageService.pickImage(ImageSource.gallery);
     if (bytes == null) return;
     await _analyzeBytes(bytes);
   }
 
-  // ★完全無音カメラを起動
   Future<void> _openSilentCamera() async {
     final Uint8List? capturedBytes = await Navigator.push(
       context,
@@ -49,7 +211,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await _analyzeBytes(capturedBytes);
   }
 
-  // 画像圧縮＆AI解析の共通処理
   Future<void> _analyzeBytes(Uint8List rawBytes) async {
     final settings = ref.read(settingsProvider);
     if (!settings.isConfigured) {
@@ -58,6 +219,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         const SnackBar(content: Text('先にGroq APIキーを設定してください')),
       );
       return;
+    }
+
+    // ★【第1の防壁：端末内判定】文字らしきチラつき（エッジ）がない場合は外部送信を遮断！
+    final isLikely = _imageService.isLikelyDocument(rawBytes);
+    if (!isLikely) {
+      _showNotReceiptDialog();
+      return; // GroqへのHTTPリクエストを一切行わず即破棄！
     }
 
     try {
@@ -72,10 +240,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _loadingMessage = 'AI解析中...';
       });
 
+      // ★【第2の防壁：Groq側判定】
       final result = await _groqService.analyzeReceipt(
         base64Image: base64Image,
         settings: settings,
       );
+
+      // レシートではないと判定された場合は保存せず即破棄
+      if (!result.isReceipt) {
+        _showNotReceiptDialog();
+        return;
+      }
 
       await ref.read(receiptListProvider.notifier).addReceipt(
             date: result.date,
@@ -111,6 +286,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         });
       }
     }
+  }
+
+  void _showNotReceiptDialog() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('認識できませんでした', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: const Text(
+          'レシートとして認識できませんでした。\nレシートや領収書を枠内に合わせて撮影してください。\n（※文字のない写真やレシート以外の画像は保存されません）',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('了解'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSettings() {
@@ -175,144 +375,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: const Text('すべて消去'),
           ),
         ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final receipts = ref.watch(receiptListProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppConstants.appName, style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          // ★エラーログ閲覧アイコン
-          IconButton(
-            icon: const Icon(Icons.bug_report_outlined),
-            tooltip: 'エラーログ',
-            onPressed: _showErrorLogs,
-          ),
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: 'LINE等へ共有',
-            onPressed: _shareReceipts,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            tooltip: '一括消去',
-            onPressed: receipts.isEmpty ? null : _confirmClearAll,
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: '設定',
-            onPressed: _showSettings,
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              const SummaryHeader(),
-              Expanded(
-                child: receipts.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.receipt_long, size: 64, color: Colors.grey.shade400),
-                            const SizedBox(height: 12),
-                            Text('レシートがまだありません', style: TextStyle(color: Colors.grey.shade600)),
-                            const SizedBox(height: 4),
-                            Text('下の「レシート撮影」または「写真選択」から読み取れます', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: receipts.length,
-                        itemBuilder: (context, index) {
-                          final item = receipts[index];
-                          return ReceiptCard(
-                            item: item,
-                            onUpdate: (updated) => ref.read(receiptListProvider.notifier).updateReceipt(updated),
-                            onDelete: () => ref.read(receiptListProvider.notifier).deleteReceipt(item.id),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-          if (_isLoading)
-            Container(
-              color: Colors.black45,
-              child: Center(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 16),
-                        Text(_loadingMessage, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _processGalleryImage,
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text('写真選択'),
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // ★無音カメラ起動ボタン
-              Expanded(
-                flex: 2,
-                child: FilledButton.icon(
-                  onPressed: _isLoading ? null : _openSilentCamera,
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('レシート撮影'), // ★ここを健全な「レシート撮影」に変更！
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.outlined(
-                tooltip: '手入力',
-                icon: const Icon(Icons.edit),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => ReceiptEditModal(
-                      onSave: (date, store, amount) {
-                        ref.read(receiptListProvider.notifier).addReceipt(
-                              date: date,
-                              store: store,
-                              amount: amount,
-                            );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
