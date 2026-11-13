@@ -22,12 +22,39 @@ class ReceiptListNotifier extends StateNotifier<List<ReceiptItem>> {
     _sortByDate();
   }
 
-  /// ★日付昇順（古い日付 ➔ 新しい日付）に自動ソート
-  /// （※日付が全く同じ場合は、撮影・登録日時順に整列）
+  /// ★表記ゆれ（スラッシュ、年省略、空白等）を吸収してDateTimeに変換する安全関数
+  static DateTime _parseDateSafe(String rawDate) {
+    if (rawDate.trim().isEmpty) return DateTime(1970);
+
+    // 空白除去、スラッシュや年月日をハイフンに統一
+    String cleaned = rawDate.trim()
+        .replaceAll('/', '-')
+        .replaceAll('年', '-')
+        .replaceAll('月', '-')
+        .replaceAll('日', '');
+
+    // "11-13" のように年が抜けている場合は今年（2026）を補完
+    final parts = cleaned.split('-');
+    if (parts.length == 2) {
+      cleaned = '${DateTime.now().year}-$cleaned';
+    }
+
+    final parsed = DateTime.tryParse(cleaned);
+    if (parsed != null) return parsed;
+
+    return DateTime(1970); // どうしても解析できないものは最古扱い
+  }
+
+  /// ★カレンダー日付（DateTime）による厳格な昇順ソート
   void _sortByDate() {
     state = [...state]..sort((a, b) {
-      final dateCompare = a.date.compareTo(b.date);
+      final dateA = _parseDateSafe(a.date);
+      final dateB = _parseDateSafe(b.date);
+
+      final dateCompare = dateA.compareTo(dateB);
       if (dateCompare != 0) return dateCompare;
+
+      // 日付が同じ場合は、登録日時（撮影順）で整列
       return a.createdAt.compareTo(b.createdAt);
     });
   }
