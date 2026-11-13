@@ -39,7 +39,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isInitialized = ref.watch(settingsInitializedProvider);
     final settings = ref.watch(settingsProvider);
 
-    // ★【修正】設定読み込みが完全に完了した初回のみ、キー未設定ならダイアログを開く
+    // 設定読み込み完了後の初回のみキー未設定チェック
     if (isInitialized && !_hasCheckedInitialKey) {
       _hasCheckedInitialKey = true;
       if (!settings.isConfigured) {
@@ -221,11 +221,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
-    // ★【第1の防壁：端末内判定】文字らしきチラつき（エッジ）がない場合は外部送信を遮断！
+    // 端末内判定（文字のない画像は外部送信を遮断）
     final isLikely = _imageService.isLikelyDocument(rawBytes);
     if (!isLikely) {
       _showNotReceiptDialog();
-      return; // GroqへのHTTPリクエストを一切行わず即破棄！
+      return;
     }
 
     try {
@@ -240,13 +240,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _loadingMessage = 'AI解析中...';
       });
 
-      // ★【第2の防壁：Groq側判定】
       final result = await _groqService.analyzeReceipt(
         base64Image: base64Image,
         settings: settings,
       );
 
-      // レシートではないと判定された場合は保存せず即破棄
       if (!result.isReceipt) {
         _showNotReceiptDialog();
         return;
@@ -266,14 +264,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // ★【赤色撤廃 ＆ 優しい日本語メッセージ通知】
+        final errorStr = e.toString().toLowerCase();
+        String friendlyMessage = 'うまく読み取れませんでした💦\nもう一度パシャッと撮り直してみてね';
+
+        if (errorStr.contains('429') || errorStr.contains('rate limit')) {
+          friendlyMessage = 'ただいまAIが混み合っています☕️\n1分ほど置いてから、もう一度試してみてね';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('解析失敗: $e'),
-            backgroundColor: Colors.red,
+            content: Text(friendlyMessage, style: const TextStyle(fontSize: 13, height: 1.4)),
+            backgroundColor: Colors.blueGrey.shade800, // 赤色ではなく落ち着いたダークトーン
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
-              label: 'ログ確認',
-              textColor: Colors.white,
+              label: '詳細',
+              textColor: Colors.tealAccent,
               onPressed: _showErrorLogs,
             ),
           ),
@@ -321,6 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     showDialog(context: context, builder: (_) => const ErrorLogDialog());
   }
 
+  // ★共有テキストも確実に「日付昇順」で生成
   void _shareReceipts() async {
     final receipts = ref.read(receiptListProvider);
     if (receipts.isEmpty) {

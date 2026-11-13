@@ -46,6 +46,8 @@ class GroqService {
         ? settings.modelName.trim()
         : AppConstants.defaultGroqModel;
 
+// lib/services/groq_service.dart の 46行目あたり
+
     final body = jsonEncode({
       'model': activeModel,
       'messages': [
@@ -58,6 +60,7 @@ class GroqService {
         }
       ],
       'temperature': 0.1,
+      'max_tokens': 500, // ★これを1行追加！無駄な巨大トークン予約を完全に防止！
     });
 
     http.Response response;

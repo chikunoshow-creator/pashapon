@@ -22,8 +22,14 @@ class ReceiptListNotifier extends StateNotifier<List<ReceiptItem>> {
     _sortByDate();
   }
 
+  /// ★日付昇順（古い日付 ➔ 新しい日付）に自動ソート
+  /// （※日付が全く同じ場合は、撮影・登録日時順に整列）
   void _sortByDate() {
-    state = [...state]..sort((a, b) => a.date.compareTo(b.date));
+    state = [...state]..sort((a, b) {
+      final dateCompare = a.date.compareTo(b.date);
+      if (dateCompare != 0) return dateCompare;
+      return a.createdAt.compareTo(b.createdAt);
+    });
   }
 
   Future<void> addReceipt({
