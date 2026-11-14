@@ -3,10 +3,12 @@ import '../core/constants/app_constants.dart';
 
 class AppSettings {
   final String apiKey;
+  final String modelName; // 互換性・内部保持用
   final bool forceLocalOcr; // ★手動で標準（ローカルOCR）モードを使うフラグ
 
   AppSettings({
     this.apiKey = '',
+    this.modelName = '',
     this.forceLocalOcr = false,
   });
 
@@ -17,10 +19,12 @@ class AppSettings {
 
   AppSettings copyWith({
     String? apiKey,
+    String? modelName,
     bool? forceLocalOcr,
   }) {
     return AppSettings(
       apiKey: apiKey ?? this.apiKey,
+      modelName: modelName ?? this.modelName,
       forceLocalOcr: forceLocalOcr ?? this.forceLocalOcr,
     );
   }
@@ -28,6 +32,7 @@ class AppSettings {
   Map<String, dynamic> toMap() {
     return {
       'apiKey': apiKey,
+      'modelName': modelName,
       'forceLocalOcr': forceLocalOcr,
     };
   }
@@ -35,6 +40,7 @@ class AppSettings {
   factory AppSettings.fromMap(Map<String, dynamic> map) {
     return AppSettings(
       apiKey: map['apiKey'] ?? '',
+      modelName: map['modelName'] ?? '',
       forceLocalOcr: map['forceLocalOcr'] ?? false,
     );
   }
