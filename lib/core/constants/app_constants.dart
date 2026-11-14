@@ -1,26 +1,35 @@
 class AppConstants {
   // アプリ基本情報
   static const String appName = 'パシャぽん';
-  static const String appVersion = '1.2.0'; // ★v1.2.0に更新
+  static const String appVersion = '1.3.0'; // ★v1.3.0に更新！
   static const String appTagline = '撮って、まとめて、サクッと共有';
 
   // 外部リンク
   static const String contactFormUrl = 'https://forms.gle/tiorxEaCJcU2SgRY9';
+  static const String groqConsoleUrl = 'https://console.groq.com';
 
   // Groq API 設定
   static const String groqApiEndpoint = 'https://api.groq.com/openai/v1/chat/completions';
-  static const String defaultGroqModel = 'qwen/qwen3.8-27b';
+  
+  // ★【裏側自動フォールバック用】推奨Visionモデルの優先度リスト
+  // 第1候補が廃止・エラー時は自動で第2候補以降へ切り替えてリトライします
+  static const List<String> fallbackVisionModels = [
+    'qwen/qwen3.8-27b',
+    'meta-llama/llama-4-scout-17b-16e-instruct',
+  ];
+  static String get defaultGroqModel => fallbackVisionModels.first;
 
   // ストレージの保存キー
   static const String prefKeySettings = 'pashapon_settings';
   static const String prefKeyReceipts = 'pashapon_receipts';
   static const String prefKeyErrorLogs = 'pashapon_error_logs';
+  static const String prefKeyHasSeenOnboarding = 'pashapon_has_seen_onboarding';
 
   // 画像圧縮設定
   static const int imageMaxDimension = 900;
   static const int imageCompressQuality = 75;
 
-  // システムプロンプト（厳格なレシート判定）
+  // システムプロンプト
   static const String receiptAnalysisPrompt = '''
 あなたはレシート・領収書を正確に識別・抽出する専門AIです。
 提供された画像を解析し、必ず以下のJSONフォーマットのみを出力してください。
@@ -38,14 +47,28 @@ class AppConstants {
 2. "date" (string): 購入日 ("YYYY-MM-DD")。不明時は今日の年月日を出力。
 3. "store" (string): 店名・発行者名。is_receiptがfalseの場合は "不明" とする。
 4. "amount" (number): 税込合計金額（整数）。is_receiptがfalseの場合は 0 とする。
-5. "reason" (string): 判定理由。is_receiptがfalseの場合は具体的な理由（例: "レシート以外の被写体です"）。trueの場合は "OK"。
+5. "reason" (string): 判定理由。is_receiptがfalseの場合は具体的な理由。trueの場合は "OK"。
 
 【出力制約】
 Markdownコードブロックや余計な解説は一切含めず、純粋なJSONオブジェクトのみを出力してください。
+{"is_receipt": true, "date": "2026-11-14", "store": "スーパーABC", "amount": 2580, "reason": "OK"}
+''';
 
-【出力例】
-{"is_receipt": true, "date": "2026-11-12", "store": "スーパーABC", "amount": 2580, "reason": "OK"}
-{"is_receipt": false, "date": "", "store": "", "amount": 0, "reason": "レシート以外の被写体です"}
+  // 初心者向けAPIキー取得手順ガイド
+  static const String apiKeyGuideText = '''
+【Groq 無料AIキーの取得手順（約1分・クレカ不要）】
+
+1. Groq Console（公式サイト）へアクセス
+ブラウザで console.groq.com を開き、Googleアカウント等で無料サインアップします。
+
+2. API Keys ページを開く
+画面左メニューの「API Keys」をタップします。
+
+3. キーを作成する
+「Create API Key」ボタンを押し、好きな名前（例: pashapon）を入力して作成します。
+
+4. キーをコピーして貼り付け
+画面に表示された「gsk_...」で始まる文字列をコピーし、パシャぽんの設定画面に貼り付けて「保存」を押せば完了です！
 ''';
 
   // 利用規約・プライバシーポリシー全文

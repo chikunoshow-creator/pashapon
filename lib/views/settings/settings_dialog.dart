@@ -15,8 +15,8 @@ class SettingsDialog extends ConsumerStatefulWidget {
 
 class _SettingsDialogState extends ConsumerState<SettingsDialog> {
   late TextEditingController _apiKeyController;
-  late TextEditingController _modelController;
-  bool _obscureApiKey = true; // パスワードマスク表示切替
+  bool _obscureApiKey = true;
+  bool _forceLocalOcr = false;
   bool _isReloading = false;
 
   @override
@@ -24,15 +24,12 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     super.initState();
     final settings = ref.read(settingsProvider);
     _apiKeyController = TextEditingController(text: settings.apiKey);
-    _modelController = TextEditingController(
-      text: settings.modelName.isNotEmpty ? settings.modelName : AppConstants.defaultGroqModel,
-    );
+    _forceLocalOcr = settings.forceLocalOcr;
   }
 
   @override
   void dispose() {
     _apiKeyController.dispose();
-    _modelController.dispose();
     super.dispose();
   }
 
@@ -63,6 +60,51 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       },
     );
     html.window.location.href = newUri.toString();
+  }
+
+  // ★【初心者向け】APIキー取得ガイドダイアログ
+  void _showApiKeyGuide() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.menu_book, color: Colors.teal),
+            SizedBox(width: 8),
+            Text('無料AIキーの取得方法', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 360,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SelectableText(
+                  AppConstants.apiKeyGuideText,
+                  style: TextStyle(fontSize: 12, height: 1.5),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('Groq Consoleを開く'),
+                    onPressed: () => html.window.open(AppConstants.groqConsoleUrl, '_blank'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showTermsDialog() {
@@ -106,13 +148,24 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             // ==========================================
             // 1. 【基本設定】
             // ==========================================
-            const Text(
-              'Groq API Key',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Groq API Key',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                // ★初心者向けガイド導線
+                TextButton.icon(
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  icon: const Icon(Icons.help_outline, size: 14),
+                  label: const Text('取得ガイド', style: TextStyle(fontSize: 11)),
+                  onPressed: _showApiKeyGuide,
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
             const Text(
-              'Groq Console で取得した無料APIキー（gsk_...）を入力してください。端末内のみに安全に保存されます。',
+              '無料キーを設定すると「🚀 AI高精度モード」で手書きやシワのあるレシートも爆速読取できます。',
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
             const SizedBox(height: 8),
@@ -120,6 +173,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               controller: _apiKeyController,
               obscureText: _obscureApiKey,
               decoration: InputDecoration(
+                hintText: 'gsk_...',
                 border: const OutlineInputBorder(),
                 isDense: true,
                 suffixIcon: IconButton(
@@ -136,7 +190,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 onPressed: () async {
                   await ref.read(settingsProvider.notifier).updateSettings(
                         apiKey: _apiKeyController.text.trim(),
-                        modelName: _modelController.text.trim(),
+                        modelName: AppConstants.defaultGroqModel,
                       );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -174,7 +228,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             const Divider(height: 28),
 
             // ==========================================
-            // 3. 【詳細・メンテナンス】（初期状態は折りたたみ）
+            // 3. 【詳細・メンテナンス】（折りたたみ）
             // ==========================================
             Theme(
               data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -186,13 +240,23 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 ),
                 children: [
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: _modelController,
-                    decoration: const InputDecoration(
-                      labelText: '使用AIモデル指定',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                      helperText: '※通常は変更不要です',
+                  // ★モデル直接入力欄は撤廃！自動フォールバックが稼働している旨を案内
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('AIエンジン: ${AppConstants.defaultGroqModel}',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        const Text('※モデル廃止時は裏側で自動フォールバックされます',
+                            style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),

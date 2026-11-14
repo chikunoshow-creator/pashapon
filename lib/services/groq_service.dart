@@ -25,31 +25,59 @@ class GroqParsedResult {
 class GroqService {
   final StorageService _storage = StorageService();
 
+  /// ★多段自動フォールバック付き解析
   Future<GroqParsedResult> analyzeReceipt({
     required String base64Image,
     required AppSettings settings,
   }) async {
     if (!settings.isConfigured) {
-      const msg = 'Groq APIキーが設定されていません。右上の設定から登録してください。';
+      const msg = 'Groq APIキーが設定されていません。';
       await _recordLog('ConfigError', msg, null);
       throw Exception(msg);
     }
 
+    // 優先度リスト順に試行（第1候補 ➔ 第2候補）
+    dynamic lastError;
+    for (final model in AppConstants.fallbackVisionModels) {
+      try {
+        return await _executeRequest(
+          base64Image: base64Image,
+          apiKey: settings.apiKey,
+          modelName: model,
+        );
+      } catch (e) {
+        lastError = e;
+        // モデル廃止・見つからないエラーの場合は次候補へ自動フォールバック
+        final errStr = e.toString().toLowerCase();
+        if (errStr.contains('model_decommissioned') ||
+            errStr.contains('not_found') ||
+            errStr.contains('404')) {
+          await _recordLog('ModelFallback', 'モデル $model から次候補へ自動切替します', e.toString());
+          continue; // 次のモデルでリトライ！
+        }
+        // レートリミット等のモデル以外のエラーはそのまま再スロー
+        rethrow;
+      }
+    }
+
+    throw lastError ?? Exception('すべてのAIモデルでの解析に失敗しました。');
+  }
+
+  Future<GroqParsedResult> _executeRequest({
+    required String base64Image,
+    required String apiKey,
+    required String modelName,
+  }) async {
     final uri = Uri.parse(AppConstants.groqApiEndpoint);
     final headers = {
-      'Authorization': 'Bearer ${settings.apiKey.trim()}',
+      'Authorization': 'Bearer ${apiKey.trim()}',
       'Content-Type': 'application/json',
     };
 
     final imageUrl = 'data:image/jpeg;base64,$base64Image';
-    final activeModel = settings.modelName.trim().isNotEmpty
-        ? settings.modelName.trim()
-        : AppConstants.defaultGroqModel;
-
-// lib/services/groq_service.dart の 46行目あたり
 
     final body = jsonEncode({
-      'model': activeModel,
+      'model': modelName,
       'messages': [
         {
           'role': 'user',
@@ -60,21 +88,15 @@ class GroqService {
         }
       ],
       'temperature': 0.1,
-      'max_tokens': 500, // ★これを1行追加！無駄な巨大トークン予約を完全に防止！
+      'max_tokens': 500, // トークン制限対策済み
     });
 
-    http.Response response;
-    try {
-      response = await http.post(uri, headers: headers, body: body);
-    } catch (e) {
-      await _recordLog('NetworkError', 'Groq APIへの通信に失敗しました', e.toString());
-      rethrow;
-    }
+    final response = await http.post(uri, headers: headers, body: body);
 
     if (response.statusCode != 200) {
       final errorBody = utf8.decode(response.bodyBytes);
       final logMessage = 'Groq APIエラー (HTTP ${response.statusCode})';
-      await _recordLog('ApiError', logMessage, 'Model: $activeModel\nResponse: $errorBody');
+      await _recordLog('ApiError', logMessage, 'Model: $modelName\nResponse: $errorBody');
       throw Exception('$logMessage: $errorBody');
     }
 

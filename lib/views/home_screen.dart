@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/constants/app_constants.dart';
@@ -12,6 +13,7 @@ import '../providers/receipt_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/groq_service.dart';
 import '../services/image_service.dart';
+import '../services/local_ocr_service.dart';
 import 'camera/silent_camera_screen.dart';
 import 'settings/settings_dialog.dart';
 import 'widgets/error_log_dialog.dart';
@@ -29,9 +31,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final ImageService _imageService = ImageService();
   final GroqService _groqService = GroqService();
+  final LocalOcrService _localOcrService = LocalOcrService();
+
   bool _isLoading = false;
   String _loadingMessage = '';
-  bool _hasCheckedInitialKey = false;
+  bool _hasCheckedOnboarding = false;
 
   @override
   Widget build(BuildContext context) {
@@ -39,19 +43,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isInitialized = ref.watch(settingsInitializedProvider);
     final settings = ref.watch(settingsProvider);
 
-    // 設定読み込み完了後の初回のみキー未設定チェック
-    if (isInitialized && !_hasCheckedInitialKey) {
-      _hasCheckedInitialKey = true;
-      if (!settings.isConfigured) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _showSettings();
-        });
-      }
+    // ★初回起動時オンボーディング（選べる2択ダイアログ）
+    if (isInitialized && !_hasCheckedOnboarding) {
+      _hasCheckedOnboarding = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkFirstTimeOnboarding(settings.isConfigured);
+      });
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppConstants.appName, style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(AppConstants.appName, style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 8),
+            // ★【ステータスバッジ】現在の動作モードを可視化
+            GestureableBadge(
+              isAiMode: settings.isAiMode,
+              onTap: () => _showModeExplanation(settings.isAiMode),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.bug_report_outlined),
@@ -196,6 +209,74 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// 初回起動時の2択オンボーディング判定
+  Future<void> _checkFirstTimeOnboarding(bool isConfigured) async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(AppConstants.prefKeyHasSeenOnboarding) ?? false;
+    if (hasSeen || isConfigured) return;
+
+    await prefs.setBool(AppConstants.prefKeyHasSeenOnboarding, true);
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: Colors.teal),
+            SizedBox(width: 8),
+            Text('ようこそパシャぽんへ！', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: const Text(
+          'レシートの「いつ・どこで・いくら」をパシャッとまとめる家計簿サポートアプリです。\n\nお好みの始め方を選んでください：',
+          style: TextStyle(fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('🌿 まずは設定なしで試す'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.rocket_launch, size: 16),
+            label: const Text('🚀 AI高精度モード（推奨）'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showSettings();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showModeExplanation(bool isAiMode) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isAiMode ? '🚀 AI高精度モード（稼働中）' : '🌿 標準モード（稼働中）'),
+        content: Text(
+          isAiMode
+              ? 'Groqの超高速Vision AIが、くしゃくしゃのレシートや手書き領収書も高精度に判読します！'
+              : '端末内部の文字認識（ローカルOCR）で動作しています。外部通信ゼロで安全ですが、複雑なレシートは「不明」になることがあります。\n\n💡 無料のAIキーを設定すると「AI高精度モード」に切り替わります！',
+          style: const TextStyle(fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          if (!isAiMode)
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _showSettings();
+              },
+              child: const Text('AIキーを設定する'),
+            ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('閉じる')),
+        ],
+      ),
+    );
+  }
+
   Future<void> _processGalleryImage() async {
     final bytes = await _imageService.pickImage(ImageSource.gallery);
     if (bytes == null) return;
@@ -213,13 +294,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _analyzeBytes(Uint8List rawBytes) async {
     final settings = ref.read(settingsProvider);
-    if (!settings.isConfigured) {
-      _showSettings();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('先にGroq APIキーを設定してください')),
-      );
-      return;
-    }
 
     // 端末内判定（文字のない画像は外部送信を遮断）
     final isLikely = _imageService.isLikelyDocument(rawBytes);
@@ -236,14 +310,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       final base64Image = await _imageService.compressAndEncodeBase64(rawBytes);
 
-      setState(() {
-        _loadingMessage = 'AI解析中...';
-      });
+      GroqParsedResult result;
 
-      final result = await _groqService.analyzeReceipt(
-        base64Image: base64Image,
-        settings: settings,
-      );
+      // ★【動作振り分け】AIモード or ローカルOCRモード
+      if (settings.isAiMode) {
+        setState(() => _loadingMessage = 'AI解析中（Groq）...');
+        result = await _groqService.analyzeReceipt(
+          base64Image: base64Image,
+          settings: settings,
+        );
+      } else {
+        setState(() => _loadingMessage = '文字認識中（端末内OCR）...');
+        result = await _localOcrService.parseReceipt(base64Image);
+      }
 
       if (!result.isReceipt) {
         _showNotReceiptDialog();
@@ -259,12 +338,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('「${result.store}」を追加しました！')),
+          SnackBar(
+            content: Text('「${result.store}」を追加しました！'),
+            action: (!settings.isAiMode && (result.store == '不明な店舗' || result.amount == 0))
+                ? SnackBarAction(
+                    label: 'AIで読む',
+                    textColor: Colors.tealAccent,
+                    onPressed: _showSettings,
+                  )
+                : null,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        // ★【赤色撤廃 ＆ 優しい日本語メッセージ通知】
         final errorStr = e.toString().toLowerCase();
         String friendlyMessage = 'うまく読み取れませんでした💦\nもう一度パシャッと撮り直してみてね';
 
@@ -275,7 +362,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(friendlyMessage, style: const TextStyle(fontSize: 13, height: 1.4)),
-            backgroundColor: Colors.blueGrey.shade800, // 赤色ではなく落ち着いたダークトーン
+            backgroundColor: Colors.blueGrey.shade800,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             duration: const Duration(seconds: 4),
@@ -289,9 +376,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -329,7 +414,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     showDialog(context: context, builder: (_) => const ErrorLogDialog());
   }
 
-  // ★共有テキストも確実に「日付昇順」で生成
   void _shareReceipts() async {
     final receipts = ref.read(receiptListProvider);
     if (receipts.isEmpty) {
@@ -384,6 +468,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: const Text('すべて消去'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 動作モードを可視化する可愛いバッジ
+class GestureableBadge extends StatelessWidget {
+  final bool isAiMode;
+  final VoidCallback onTap;
+
+  const GestureableBadge({super.key, required this.isAiMode, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: isAiMode ? Colors.purple.shade50 : Colors.teal.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isAiMode ? Colors.purple.shade300 : Colors.teal.shade300,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isAiMode ? '🚀 AI高精度' : '🌿 標準',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isAiMode ? Colors.purple.shade800 : Colors.teal.shade800,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
