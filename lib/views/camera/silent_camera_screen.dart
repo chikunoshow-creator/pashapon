@@ -82,7 +82,6 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
 
     if (videoWidth == 0 || videoHeight == 0) return;
 
-    // ★重要：枠でトリミングせず、フル解像度の全体をそのままキャプチャ！
     final canvas = html.CanvasElement(width: videoWidth, height: videoHeight);
     canvas.context2D.drawImage(_videoElement!, 0, 0);
 
@@ -119,7 +118,6 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. カメラプレビュー
           if (_isInitialized)
             HtmlElementView(viewType: _viewId)
           else if (_errorMessage != null)
@@ -138,14 +136,13 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
               child: CircularProgressIndicator(color: Colors.teal),
             ),
 
-          // 2. ★縦長点線ガイド枠 ＆ 案内テキスト（オーバーレイ）
+          // ガイド枠＆案内テキスト
           if (_isInitialized)
             SafeArea(
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // 案内テキストバブル
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
@@ -164,12 +161,14 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          SizedBox(height: 2),
+                          SizedBox(height: 3),
+                          // ★最適化した案内文
                           Text(
-                            '※長いレシートは少し離して撮影してください',
+                            '※長いレシートは『合計金額』までを枠に収めるのがコツです！',
                             style: TextStyle(
-                              color: Colors.white70,
+                              color: Colors.tealAccent,
                               fontSize: 10,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -177,7 +176,6 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // 点線の縦長フレーム
                     CustomPaint(
                       size: Size(frameWidth, frameHeight),
                       painter: _DashedRRectPainter(
@@ -188,13 +186,13 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
                         radius: 16.0,
                       ),
                     ),
-                    const SizedBox(height: 70), // 下部シャッターボタンとの干渉避け
+                    const SizedBox(height: 70),
                   ],
                 ),
               ),
             ),
 
-          // 3. 左上閉じるボタン
+          // 閉じるボタン
           SafeArea(
             child: Align(
               alignment: Alignment.topLeft,
@@ -214,7 +212,7 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
             ),
           ),
 
-          // 4. 下部シャッターボタン
+          // シャッターボタン
           if (_isInitialized)
             Align(
               alignment: Alignment.bottomCenter,
@@ -252,7 +250,6 @@ class _SilentCameraScreenState extends State<SilentCameraScreen> {
   }
 }
 
-/// 滑らかな角丸の破線を描くカスタムペインター
 class _DashedRRectPainter extends CustomPainter {
   final Color color;
   final double strokeWidth;

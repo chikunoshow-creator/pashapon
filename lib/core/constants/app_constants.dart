@@ -1,7 +1,7 @@
 class AppConstants {
   // アプリ基本情報
   static const String appName = 'パシャぽん';
-  static const String appVersion = '1.3.0'; // ★v1.3.0に更新！
+  static const String appVersion = '1.3.1'; // ★v1.3.1に更新！
   static const String appTagline = '撮って、まとめて、サクッと共有';
 
   // 外部リンク
@@ -11,8 +11,7 @@ class AppConstants {
   // Groq API 設定
   static const String groqApiEndpoint = 'https://api.groq.com/openai/v1/chat/completions';
   
-  // ★【裏側自動フォールバック用】推奨Visionモデルの優先度リスト
-  // 第1候補が廃止・エラー時は自動で第2候補以降へ切り替えてリトライします
+  // 推奨Visionモデルの優先度リスト（自動フォールバック用）
   static const List<String> fallbackVisionModels = [
     'qwen/qwen3.8-27b',
     'meta-llama/llama-4-scout-17b-16e-instruct',
@@ -29,29 +28,33 @@ class AppConstants {
   static const int imageMaxDimension = 900;
   static const int imageCompressQuality = 75;
 
-  // システムプロンプト
+  // ★【マツキヨ問題対策済み】システムプロンプト
   static const String receiptAnalysisPrompt = '''
 あなたはレシート・領収書を正確に識別・抽出する専門AIです。
 提供された画像を解析し、必ず以下のJSONフォーマットのみを出力してください。
 
 【判定基準（重要）】
 1. "is_receipt" (boolean):
-   ・trueとする場合：
-     多少のシワ、折れ目、影、ピンボケ、斜め撮影、手書きの領収書・納品書・伝票であっても、
-     買い物の記録（品目・店舗・金額のいずれか）が確認できる書類であれば必ず true にしてください。
-   ・falseとする場合：
-     人物、顔、身体の一部、風景、食事そのもの、家具、衣服など、
-     「明らかにレシート・領収書・伝票の類ではない画像」は必ず false にしてください。
-     また、文字が完全に潰れていて店名・日付・金額が一切判読できない場合も false にしてください。
+   ・レシート・領収書・納品書・伝票等の支払い証明書類であれば true。
+   ・人物、身体の一部、風景、無関係な物体、または文字が潰れて全く読めない場合は false。
 
-2. "date" (string): 購入日 ("YYYY-MM-DD")。不明時は今日の年月日を出力。
-3. "store" (string): 店名・発行者名。is_receiptがfalseの場合は "不明" とする。
-4. "amount" (number): 税込合計金額（整数）。is_receiptがfalseの場合は 0 とする。
+2. "amount" (number): 実際に支払った税込合計金額（整数）。記号不要。
+   ※【超重要・除外ルール（誤爆防止）】
+   ドラッグストア等のレシート下部に記載されている以下の数値を、絶対に合計金額として抽出しないでください：
+   ・「保有ポイント」「獲得ポイント」「今回ポイント」などのポイント数
+   ・「ステージアップまであと〇〇円」「ランクアップまで〇〇円」などの目標金額
+   ・「次回使える〇〇円引きクーポン」「特別値引〇〇円」などのクーポン額
+   ・「お預かり」「現収」「お釣り」「差引金額」
+   必ず明細直後の『合計』『お買上計』『税込合計』『クレジット支払額』『請求額』の数値を最優先で採用してください。
+   is_receiptがfalseの場合は 0 とする。
+
+3. "date" (string): 購入日 ("YYYY-MM-DD")。不明時は今日の年月日を出力。
+4. "store" (string): 店名・発行者名。is_receiptがfalseの場合は "不明" とする。
 5. "reason" (string): 判定理由。is_receiptがfalseの場合は具体的な理由。trueの場合は "OK"。
 
 【出力制約】
-Markdownコードブロックや余計な解説は一切含めず、純粋なJSONオブジェクトのみを出力してください。
-{"is_receipt": true, "date": "2026-11-14", "store": "スーパーABC", "amount": 2580, "reason": "OK"}
+Markdownコードブロック不要、純粋なJSONオブジェクトのみを出力してください。
+{"is_receipt": true, "date": "2026-11-15", "store": "スーパーABC", "amount": 2580, "reason": "OK"}
 ''';
 
   // 初心者向けAPIキー取得手順ガイド

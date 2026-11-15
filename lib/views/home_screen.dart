@@ -43,7 +43,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isInitialized = ref.watch(settingsInitializedProvider);
     final settings = ref.watch(settingsProvider);
 
-    // ★初回起動時オンボーディング（選べる2択ダイアログ）
     if (isInitialized && !_hasCheckedOnboarding) {
       _hasCheckedOnboarding = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -52,41 +51,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(AppConstants.appName, style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(width: 8),
-            // ★【ステータスバッジ】現在の動作モードを可視化
-            GestureableBadge(
-              isAiMode: settings.isAiMode,
-              onTap: () => _showModeExplanation(settings.isAiMode),
+      backgroundColor: const Color(0xFFF6F8F9),
+      // ★【iPhoneノッチ・ダイナミックアイランド対策＆洗練された上部ヘッダー】
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(64),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                offset: const Offset(0, 2),
+                blurRadius: 6,
+              ),
+            ],
+            border: Border(
+              bottom: BorderSide(color: Colors.teal.shade50, width: 1.5),
             ),
-          ],
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(
+                children: [
+                  // アプリアイコン風バッジ ＆ タイトル
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.receipt_long, color: Colors.teal, size: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    AppConstants.appName,
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 0.5),
+                  ),
+                  const SizedBox(width: 8),
+                  // モードバッジ
+                  GestureableBadge(
+                    isAiMode: settings.isAiMode,
+                    onTap: () => _showModeExplanation(settings.isAiMode),
+                  ),
+                  const Spacer(),
+                  // アクションボタン群
+                  IconButton(
+                    icon: const Icon(Icons.bug_report_outlined, size: 20),
+                    tooltip: 'エラーログ',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _showErrorLogs,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.share, size: 20),
+                    tooltip: 'LINE等へ共有',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _shareReceipts,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_sweep, size: 20),
+                    tooltip: '一括消去',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: receipts.isEmpty ? null : _confirmClearAll,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.settings, size: 20),
+                    tooltip: '設定',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _showSettings,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bug_report_outlined),
-            tooltip: 'エラーログ',
-            onPressed: _showErrorLogs,
-          ),
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: 'LINE等へ共有',
-            onPressed: _shareReceipts,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            tooltip: '一括消去',
-            onPressed: receipts.isEmpty ? null : _confirmClearAll,
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: '設定',
-            onPressed: _showSettings,
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -209,7 +248,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  /// 初回起動時の2択オンボーディング判定
   Future<void> _checkFirstTimeOnboarding(bool isConfigured) async {
     final prefs = await SharedPreferences.getInstance();
     final hasSeen = prefs.getBool(AppConstants.prefKeyHasSeenOnboarding) ?? false;
@@ -295,7 +333,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _analyzeBytes(Uint8List rawBytes) async {
     final settings = ref.read(settingsProvider);
 
-    // 端末内判定（文字のない画像は外部送信を遮断）
     final isLikely = _imageService.isLikelyDocument(rawBytes);
     if (!isLikely) {
       _showNotReceiptDialog();
@@ -312,7 +349,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       GroqParsedResult result;
 
-      // ★【動作振り分け】AIモード or ローカルOCRモード
       if (settings.isAiMode) {
         setState(() => _loadingMessage = 'AI解析中（Groq）...');
         result = await _groqService.analyzeReceipt(
@@ -473,7 +509,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-/// 動作モードを可視化する可愛いバッジ
 class GestureableBadge extends StatelessWidget {
   final bool isAiMode;
   final VoidCallback onTap;
@@ -486,7 +521,7 @@ class GestureableBadge extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
           color: isAiMode ? Colors.purple.shade50 : Colors.teal.shade50,
           borderRadius: BorderRadius.circular(12),
@@ -501,7 +536,7 @@ class GestureableBadge extends StatelessWidget {
             Text(
               isAiMode ? '🚀 AI高精度' : '🌿 標準',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
                 color: isAiMode ? Colors.purple.shade800 : Colors.teal.shade800,
               ),
