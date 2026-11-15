@@ -51,74 +51,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8F9),
-      // ★【iPhoneノッチ・ダイナミックアイランド対策＆洗練された上部ヘッダー】
+      backgroundColor: const Color(0xFFFBF9F7), // ほんのり温かみのあるオフホワイト
+      // ★【温かみのあるオレンジヘッダー ＆ スッキリ断捨離デザイン】
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(64),
+        preferredSize: const Size.fromHeight(60),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFFFFF3E0), // パシャぽんアイコンと連動する淡いオレンジ
+            border: const Border(
+              bottom: BorderSide(
+                color: Color(0xFFFFE0B2), // 下部境界線（白飛び防止）
+                width: 1.5,
+              ),
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                offset: const Offset(0, 2),
-                blurRadius: 6,
+                color: Colors.orange.withOpacity(0.08),
+                offset: const Offset(0, 3),
+                blurRadius: 8,
               ),
             ],
-            border: Border(
-              bottom: BorderSide(color: Colors.teal.shade50, width: 1.5),
-            ),
           ),
           child: SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Row(
                 children: [
-                  // アプリアイコン風バッジ ＆ タイトル
+                  // アプリアイコン風バッジ
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.teal.shade50,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.orange.withOpacity(0.15),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.receipt_long, color: Colors.teal, size: 20),
+                    child: const Icon(Icons.receipt_long, color: Color(0xFFE65100), size: 20),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
+                  // タイトルロゴ
                   const Text(
                     AppConstants.appName,
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 0.5),
-                  ),
-                  const SizedBox(width: 8),
-                  // モードバッジ
-                  GestureableBadge(
-                    isAiMode: settings.isAiMode,
-                    onTap: () => _showModeExplanation(settings.isAiMode),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 19,
+                      color: Color(0xFFD84315), // キリッと引き締まるディープオレンジ
+                      letterSpacing: 0.5,
+                    ),
                   ),
                   const Spacer(),
-                  // アクションボタン群
+                  // 右上アクションボタン（厳選された3つのみでスッキリ！）
                   IconButton(
-                    icon: const Icon(Icons.bug_report_outlined, size: 20),
-                    tooltip: 'エラーログ',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: _showErrorLogs,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.share, size: 20),
-                    tooltip: 'LINE等へ共有',
-                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.share_outlined, color: Color(0xFFBF360C)),
+                    tooltip: '共有',
                     onPressed: _shareReceipts,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.delete_sweep, size: 20),
+                    icon: const Icon(Icons.delete_sweep_outlined, color: Color(0xFFBF360C)),
                     tooltip: '一括消去',
-                    visualDensity: VisualDensity.compact,
                     onPressed: receipts.isEmpty ? null : _confirmClearAll,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.settings, size: 20),
+                    icon: const Icon(Icons.settings_outlined, color: Color(0xFFBF360C)),
                     tooltip: '設定',
-                    visualDensity: VisualDensity.compact,
                     onPressed: _showSettings,
                   ),
                 ],
@@ -131,6 +132,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Column(
             children: [
+              // ★サマリーヘッダーの上にモードバッジをお引越し（自然な配置！）
+              Padding(
+                padding: const EdgeInsets.only(left: 18, right: 18, top: 10, bottom: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '支出サマリー',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.brown.shade400,
+                      ),
+                    ),
+                    GestureableBadge(
+                      isAiMode: settings.isAiMode,
+                      onTap: () => _showModeExplanation(settings.isAiMode),
+                    ),
+                  ],
+                ),
+              ),
               const SummaryHeader(),
               Expanded(
                 child: receipts.isEmpty
@@ -140,7 +162,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.receipt_long, size: 64, color: Colors.teal.shade200),
+                              Icon(Icons.receipt_long, size: 64, color: Colors.orange.shade200),
                               const SizedBox(height: 16),
                               const Text(
                                 '財布にレシート溜まってませんか？',
@@ -155,7 +177,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               const SizedBox(height: 16),
                               Text(
                                 '👇 下のボタンから撮影・選択してください',
-                                style: TextStyle(color: Colors.teal.shade700, fontSize: 12, fontWeight: FontWeight.w500),
+                                style: TextStyle(color: Colors.deepOrange.shade600, fontSize: 12, fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
@@ -185,7 +207,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CircularProgressIndicator(),
+                        const CircularProgressIndicator(color: Colors.deepOrange),
                         const SizedBox(height: 16),
                         Text(_loadingMessage, style: const TextStyle(fontWeight: FontWeight.bold)),
                       ],
@@ -206,7 +228,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onPressed: _isLoading ? null : _processGalleryImage,
                   icon: const Icon(Icons.photo_library),
                   label: const Text('写真選択'),
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.brown.shade700,
+                    side: BorderSide(color: Colors.orange.shade200),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -226,6 +252,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               IconButton.outlined(
                 tooltip: '手入力',
                 icon: const Icon(Icons.edit),
+                style: IconButton.styleFrom(
+                  side: BorderSide(color: Colors.orange.shade200),
+                  foregroundColor: Colors.brown.shade700,
+                ),
                 onPressed: () {
                   showDialog(
                     context: context,
@@ -262,7 +292,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.auto_awesome, color: Colors.teal),
+            Icon(Icons.auto_awesome, color: Colors.deepOrange),
             SizedBox(width: 8),
             Text('ようこそパシャぽんへ！', style: TextStyle(fontSize: 16)),
           ],
@@ -277,6 +307,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: const Text('🌿 まずは設定なしで試す'),
           ),
           FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
             icon: const Icon(Icons.rocket_launch, size: 16),
             label: const Text('🚀 AI高精度モード（推奨）'),
             onPressed: () {
@@ -303,6 +334,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         actions: [
           if (!isAiMode)
             FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
               onPressed: () {
                 Navigator.pop(ctx);
                 _showSettings();
@@ -379,7 +411,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             action: (!settings.isAiMode && (result.store == '不明な店舗' || result.amount == 0))
                 ? SnackBarAction(
                     label: 'AIで読む',
-                    textColor: Colors.tealAccent,
+                    textColor: Colors.orangeAccent,
                     onPressed: _showSettings,
                   )
                 : null,
@@ -404,7 +436,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: '詳細',
-              textColor: Colors.tealAccent,
+              textColor: Colors.orangeAccent,
               onPressed: _showErrorLogs,
             ),
           ),
@@ -434,6 +466,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         actions: [
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('了解'),
           ),
@@ -478,7 +511,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       await Clipboard.setData(ClipboardData(text: text));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('クリップボードにコピーしました！そのままLINEに貼り付けられます。')),
+          const SnackBar(content: Text('クリップボードにコピーしました！そのまま貼り付けられます。')),
         );
       }
     }
@@ -489,7 +522,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('履歴の一括リセット'),
-        content: const Text('共有済みのレシートデータとサムネイル画像をすべて消去しますか？\n（APIキー等の設定は保持されます）'),
+        content: const Text('記録したレシートデータとサムネイル画像をすべて消去しますか？\n（※定期的にリセットすると端末容量を節約できます）'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('戻る')),
           FilledButton(
@@ -521,12 +554,12 @@ class GestureableBadge extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: isAiMode ? Colors.purple.shade50 : Colors.teal.shade50,
+          color: isAiMode ? const Color(0xFFFBE9E7) : Colors.teal.shade50,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isAiMode ? Colors.purple.shade300 : Colors.teal.shade300,
+            color: isAiMode ? const Color(0xFFFFAB91) : Colors.teal.shade300,
             width: 1,
           ),
         ),
@@ -538,7 +571,7 @@ class GestureableBadge extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: isAiMode ? Colors.purple.shade800 : Colors.teal.shade800,
+                color: isAiMode ? const Color(0xFFD84315) : Colors.teal.shade800,
               ),
             ),
           ],
