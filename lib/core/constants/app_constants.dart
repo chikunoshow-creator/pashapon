@@ -1,7 +1,7 @@
 class AppConstants {
   // アプリ基本情報
   static const String appName = 'パシャぽん';
-  static const String appVersion = '1.3.1'; // ★v1.3.1に更新！
+  static const String appVersion = '1.4.0'; // ★v1.4.0に更新！
   static const String appTagline = '撮って、まとめて、サクッと共有';
 
   // 外部リンク
@@ -11,7 +11,7 @@ class AppConstants {
   // Groq API 設定
   static const String groqApiEndpoint = 'https://api.groq.com/openai/v1/chat/completions';
   
-  // 推奨Visionモデルの優先度リスト（自動フォールバック用）
+  // 推奨Visionモデルの優先度リスト
   static const List<String> fallbackVisionModels = [
     'qwen/qwen3.8-27b',
     'meta-llama/llama-4-scout-17b-16e-instruct',
@@ -28,7 +28,7 @@ class AppConstants {
   static const int imageMaxDimension = 900;
   static const int imageCompressQuality = 75;
 
-  // ★【マツキヨ問題対策済み】システムプロンプト
+  // システムプロンプト（マツキヨ問題対策済み）
   static const String receiptAnalysisPrompt = '''
 あなたはレシート・領収書を正確に識別・抽出する専門AIです。
 提供された画像を解析し、必ず以下のJSONフォーマットのみを出力してください。

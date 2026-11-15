@@ -36,6 +36,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isLoading = false;
   String _loadingMessage = '';
   bool _hasCheckedOnboarding = false;
+  bool _isDailyGrouping = false; // ★明細順 vs 日別まとめ 切り替え
 
   @override
   Widget build(BuildContext context) {
@@ -51,118 +52,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF9F7), // ほんのり温かみのあるオフホワイト
-      // ★【温かみのあるオレンジヘッダー ＆ スッキリ断捨離デザイン】
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF3E0), // パシャぽんアイコンと連動する淡いオレンジ
-            border: const Border(
-              bottom: BorderSide(
-                color: Color(0xFFFFE0B2), // 下部境界線（白飛び防止）
-                width: 1.5,
-              ),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.orange.withOpacity(0.08),
-                offset: const Offset(0, 3),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                children: [
-                  // アプリアイコン風バッジ
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.orange.withOpacity(0.15),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.receipt_long, color: Color(0xFFE65100), size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  // タイトルロゴ
-                  const Text(
-                    AppConstants.appName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 19,
-                      color: Color(0xFFD84315), // キリッと引き締まるディープオレンジ
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const Spacer(),
-                  // 右上アクションボタン（厳選された3つのみでスッキリ！）
-                  IconButton(
-                    icon: const Icon(Icons.share_outlined, color: Color(0xFFBF360C)),
-                    tooltip: '共有',
-                    onPressed: _shareReceipts,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_sweep_outlined, color: Color(0xFFBF360C)),
-                    tooltip: '一括消去',
-                    onPressed: receipts.isEmpty ? null : _confirmClearAll,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: Color(0xFFBF360C)),
-                    tooltip: '設定',
-                    onPressed: _showSettings,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      body: Stack(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: Column(
         children: [
-          Column(
-            children: [
-              // ★サマリーヘッダーの上にモードバッジをお引越し（自然な配置！）
-              Padding(
-                padding: const EdgeInsets.only(left: 18, right: 18, top: 10, bottom: 2),
+          // ★【上部のかすれ完全解消＆プロデューサー案ヘッダー】
+          // 画面の最上端（時計の裏）まで完全にベタ塗りで届くコンテナ構造
+          Container(
+            color: const Color(0xFFFFF8F2), // プロデューサーのスクショの温かみのあるカラー
+            child: SafeArea(
+              bottom: false,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Color(0xFFFFEBDD), width: 1.5),
+                  ),
+                ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '支出サマリー',
+                    // アプリアイコン ＆ タイトル
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFFDEC7)),
+                      ),
+                      child: const Icon(Icons.receipt_long, color: Color(0xFFE07A5F), size: 20),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      AppConstants.appName,
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.brown.shade400,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        color: Color(0xFFD35400),
+                        letterSpacing: 0.5,
                       ),
                     ),
-                    GestureableBadge(
-                      isAiMode: settings.isAiMode,
-                      onTap: () => _showModeExplanation(settings.isAiMode),
+                    const Spacer(),
+                    // ★厳選した3ボタンのみ！
+                    IconButton(
+                      icon: const Icon(Icons.share, color: Color(0xFFD35400), size: 20),
+                      tooltip: '共有',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _shareReceipts,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_sweep, color: Color(0xFFD35400), size: 20),
+                      tooltip: '一括リセット',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: receipts.isEmpty ? null : _confirmClearAll,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.settings, color: Color(0xFFD35400), size: 20),
+                      tooltip: '設定',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _showSettings,
                     ),
                   ],
                 ),
               ),
-              const SummaryHeader(),
-              Expanded(
-                child: receipts.isEmpty
+            ),
+          ),
+
+          // サマリーエリア（支出サマリー、モードバッジ、合計カード、切り替えタブ）
+          SummaryHeader(
+            isAiMode: settings.isAiMode,
+            onModeTap: () => _showModeExplanation(settings.isAiMode),
+            isDailyGrouping: _isDailyGrouping,
+            onGroupingChanged: (val) => setState(() => _isDailyGrouping = val),
+          ),
+
+          // メインリストエリア
+          Expanded(
+            child: Stack(
+              children: [
+                receipts.isEmpty
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.receipt_long, size: 64, color: Colors.orange.shade200),
+                              Icon(Icons.receipt_long, size: 64, color: Colors.teal.shade200),
                               const SizedBox(height: 16),
                               const Text(
                                 '財布にレシート溜まってませんか？',
@@ -177,45 +150,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               const SizedBox(height: 16),
                               Text(
                                 '👇 下のボタンから撮影・選択してください',
-                                style: TextStyle(color: Colors.deepOrange.shade600, fontSize: 12, fontWeight: FontWeight.w500),
+                                style: TextStyle(color: Colors.teal.shade700, fontSize: 12, fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
                         ),
                       )
-                    : ListView.builder(
-                        itemCount: receipts.length,
-                        itemBuilder: (context, index) {
-                          final item = receipts[index];
-                          return ReceiptCard(
-                            item: item,
-                            onUpdate: (updated) => ref.read(receiptListProvider.notifier).updateReceipt(updated),
-                            onDelete: () => ref.read(receiptListProvider.notifier).deleteReceipt(item.id),
-                          );
-                        },
+                    : _isDailyGrouping
+                        ? _buildDailyGroupedList(receipts)
+                        : _buildDetailList(receipts),
+
+                if (_isLoading)
+                  Container(
+                    color: Colors.black45,
+                    child: Center(
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const CircularProgressIndicator(),
+                              const SizedBox(height: 16),
+                              Text(_loadingMessage, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
                       ),
-              ),
-            ],
-          ),
-          if (_isLoading)
-            Container(
-              color: Colors.black45,
-              child: Center(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(color: Colors.deepOrange),
-                        const SizedBox(height: 16),
-                        Text(_loadingMessage, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ],
                     ),
                   ),
-                ),
-              ),
+              ],
             ),
+          ),
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -228,11 +194,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onPressed: _isLoading ? null : _processGalleryImage,
                   icon: const Icon(Icons.photo_library),
                   label: const Text('写真選択'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.brown.shade700,
-                    side: BorderSide(color: Colors.orange.shade200),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -252,10 +214,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               IconButton.outlined(
                 tooltip: '手入力',
                 icon: const Icon(Icons.edit),
-                style: IconButton.styleFrom(
-                  side: BorderSide(color: Colors.orange.shade200),
-                  foregroundColor: Colors.brown.shade700,
-                ),
                 onPressed: () {
                   showDialog(
                     context: context,
@@ -278,6 +236,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// 通常の明細フラット一覧
+  Widget _buildDetailList(List<ReceiptItem> receipts) {
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 4, bottom: 16),
+      itemCount: receipts.length,
+      itemBuilder: (context, index) {
+        final item = receipts[index];
+        return ReceiptCard(
+          item: item,
+          onUpdate: (updated) => ref.read(receiptListProvider.notifier).updateReceipt(updated),
+          onDelete: () => ref.read(receiptListProvider.notifier).deleteReceipt(item.id),
+        );
+      },
+    );
+  }
+
+  /// ★【日別まとめモード】日付ごとにセクション分け＆小計を表示する一覧
+  Widget _buildDailyGroupedList(List<ReceiptItem> receipts) {
+    // 日付ごとにグルーピング
+    final Map<String, List<ReceiptItem>> grouped = {};
+    for (final item in receipts) {
+      grouped.putIfAbsent(item.date, () => []).add(item);
+    }
+
+    final dates = grouped.keys.toList();
+    final currencyFormatter = NumberFormat('#,###', 'ja_JP');
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 4, bottom: 16),
+      itemCount: dates.length,
+      itemBuilder: (context, dIndex) {
+        final date = dates[dIndex];
+        final dayItems = grouped[date]!;
+        final dayTotal = dayItems.fold(0, (sum, i) => sum + i.amount);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 日付ヘッダー ＆ その日の小計
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 14, color: Colors.teal),
+                      const SizedBox(width: 6),
+                      Text(
+                        date,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade100.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '日計: ¥${currencyFormatter.format(dayTotal)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.teal.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // その日のレシート一覧
+            ...dayItems.map((item) => ReceiptCard(
+                  item: item,
+                  onUpdate: (updated) => ref.read(receiptListProvider.notifier).updateReceipt(updated),
+                  onDelete: () => ref.read(receiptListProvider.notifier).deleteReceipt(item.id),
+                )),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _checkFirstTimeOnboarding(bool isConfigured) async {
     final prefs = await SharedPreferences.getInstance();
     final hasSeen = prefs.getBool(AppConstants.prefKeyHasSeenOnboarding) ?? false;
@@ -292,7 +334,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.auto_awesome, color: Colors.deepOrange),
+            Icon(Icons.auto_awesome, color: Colors.teal),
             SizedBox(width: 8),
             Text('ようこそパシャぽんへ！', style: TextStyle(fontSize: 16)),
           ],
@@ -307,7 +349,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: const Text('🌿 まずは設定なしで試す'),
           ),
           FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
             icon: const Icon(Icons.rocket_launch, size: 16),
             label: const Text('🚀 AI高精度モード（推奨）'),
             onPressed: () {
@@ -334,7 +375,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         actions: [
           if (!isAiMode)
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
               onPressed: () {
                 Navigator.pop(ctx);
                 _showSettings();
@@ -411,7 +451,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             action: (!settings.isAiMode && (result.store == '不明な店舗' || result.amount == 0))
                 ? SnackBarAction(
                     label: 'AIで読む',
-                    textColor: Colors.orangeAccent,
+                    textColor: Colors.tealAccent,
                     onPressed: _showSettings,
                   )
                 : null,
@@ -436,7 +476,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: '詳細',
-              textColor: Colors.orangeAccent,
+              textColor: Colors.tealAccent,
               onPressed: _showErrorLogs,
             ),
           ),
@@ -466,7 +506,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         actions: [
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('了解'),
           ),
@@ -483,6 +522,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     showDialog(context: context, builder: (_) => const ErrorLogDialog());
   }
 
+  // ★モードに応じた共有テキスト生成（明細順 or 日別小計つき）
   void _shareReceipts() async {
     final receipts = ref.read(receiptListProvider);
     if (receipts.isEmpty) {
@@ -494,12 +534,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final total = ref.read(totalAmountProvider);
     final formatter = NumberFormat('#,###', 'ja_JP');
-
     final buffer = StringBuffer();
+
     buffer.writeln('📋 【レシート共有】');
-    for (final item in receipts) {
-      buffer.writeln('・${item.date} ${item.store}：¥${formatter.format(item.amount)}');
+
+    if (_isDailyGrouping) {
+      // 日別まとめフォーマット
+      final Map<String, List<ReceiptItem>> grouped = {};
+      for (final item in receipts) {
+        grouped.putIfAbsent(item.date, () => []).add(item);
+      }
+      for (final entry in grouped.entries) {
+        final dayTotal = entry.value.fold(0, (sum, i) => sum + i.amount);
+        buffer.writeln('■ ${entry.key}');
+        for (final item in entry.value) {
+          buffer.writeln('  ・${item.store}：¥${formatter.format(item.amount)}');
+        }
+        buffer.writeln('  【小計：¥${formatter.format(dayTotal)}】\n');
+      }
+    } else {
+      // シンプル明細フォーマット
+      for (final item in receipts) {
+        buffer.writeln('・${item.date} ${item.store}：¥${formatter.format(item.amount)}');
+      }
     }
+
     buffer.writeln('--------------------');
     buffer.writeln('合計：${receipts.length}件 ¥${formatter.format(total)}');
 
@@ -522,7 +581,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('履歴の一括リセット'),
-        content: const Text('記録したレシートデータとサムネイル画像をすべて消去しますか？\n（※定期的にリセットすると端末容量を節約できます）'),
+        // ★【安心容量メッセージ】リセット画面内にスマートに格納
+        content: const Text(
+          '共有済みのレシートデータとサムネイル画像をすべて消去しますか？\n（APIキー等の設定は保持されます）\n\n💡 定期的にリセットすることで、端末の保存容量を節約し快適にお使いいただけます。',
+          style: TextStyle(fontSize: 13, height: 1.4),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('戻る')),
           FilledButton(
@@ -537,45 +600,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: const Text('すべて消去'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class GestureableBadge extends StatelessWidget {
-  final bool isAiMode;
-  final VoidCallback onTap;
-
-  const GestureableBadge({super.key, required this.isAiMode, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: isAiMode ? const Color(0xFFFBE9E7) : Colors.teal.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isAiMode ? const Color(0xFFFFAB91) : Colors.teal.shade300,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              isAiMode ? '🚀 AI高精度' : '🌿 標準',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: isAiMode ? const Color(0xFFD84315) : Colors.teal.shade800,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -7,13 +7,13 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="パシャぽん - 撮って、まとめて、サクッと共有できるAI家計簿サポートPWA">
 
-  <!-- iOS meta tags & icons -->
+  <!-- ★【iPhoneノッチ・ステータスバーかすれ撲滅設定】 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="パシャぽん">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="theme-color" content="#FFF8F2">
 
-  <!-- Favicon -->
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <title>パシャぽん</title>
@@ -28,12 +28,9 @@
     gtag('config', 'G-MCGC7X1EQF');
   </script>
 
-  <!-- ======================================================== -->
-  <!-- ★ Tesseract.js (ブラウザ完結ローカルOCR) CDN -->
-  <!-- ======================================================== -->
+  <!-- Tesseract.js (ローカルOCR) CDN -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script>
-    // Dartから簡単に呼べるローカルOCR連携関数
     window.runLocalOcr = async function(base64Data) {
       try {
         const worker = await Tesseract.createWorker('jpn+eng');
