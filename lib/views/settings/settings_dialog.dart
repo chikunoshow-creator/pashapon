@@ -352,18 +352,20 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                           ),
                         ),
                         const SizedBox(height: 8),
+// lib/views/settings/settings_dialog.dart の最下部（330行目付近）
+
                         Text(
                           '【 Development Credits 】\n'
-                          'Project Manager : Chiku\n'
-                          'Lead Director   : Aoi (Gemini)\n'
-                          'Lead Engineer   : Mio (Google AI Studio)\n'
-                          'Special Thanks  : Mugi (ChatGPT)',
+                          'Project Manager: Chiku\n'
+                          'Lead Director: Aoi (Gemini)\n'
+                          'Lead Engineer: Mio (Google AI Studio)\n'
+                          'Special Thanks: Mugi (ChatGPT)',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 10,
-                            height: 1.5,
-                            color: Colors.grey.shade500,
+                            fontSize: 11,
+                            height: 1.6,
+                            color: Colors.grey.shade600,
+                            letterSpacing: 0.3,
                           ),
                         ),
                       ],
