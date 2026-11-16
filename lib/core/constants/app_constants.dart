@@ -1,12 +1,19 @@
 class AppConstants {
   // アプリ基本情報
   static const String appName = 'パシャぽん';
-  static const String appVersion = '1.4.0'; // ★v1.4.0に更新！
+  static const String appVersion = '1.4.1'; // ★v1.4.1に更新！
   static const String appTagline = '撮って、まとめて、サクッと共有';
 
   // 外部リンク
   static const String contactFormUrl = 'https://forms.gle/tiorxEaCJcU2SgRY9';
   static const String groqConsoleUrl = 'https://console.groq.com';
+  // ★Buy Me a Coffee 支援ページ
+  static const String bmacUrl = 'https://www.buymeacoffee.com/chikunoshow';
+
+  // ★SNS拡散用定数
+  static const String appUrl = 'https://chikunoshow-creator.github.io/pashapon/';
+  static const String shareAppText =
+      'レシートをパシャッと撮るだけで日付・店名・合計金額を自動集計！登録不要・サーバー保存なしの安心設計『パシャぽん』🧾✨\n$appUrl';
 
   // Groq API 設定
   static const String groqApiEndpoint = 'https://api.groq.com/openai/v1/chat/completions';

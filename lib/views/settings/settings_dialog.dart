@@ -2,6 +2,7 @@
 import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/settings_provider.dart';
 import '../widgets/error_log_dialog.dart';
@@ -16,7 +17,6 @@ class SettingsDialog extends ConsumerStatefulWidget {
 class _SettingsDialogState extends ConsumerState<SettingsDialog> {
   late TextEditingController _apiKeyController;
   bool _obscureApiKey = true;
-  bool _forceLocalOcr = false;
   bool _isReloading = false;
 
   @override
@@ -24,7 +24,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     super.initState();
     final settings = ref.read(settingsProvider);
     _apiKeyController = TextEditingController(text: settings.apiKey);
-    _forceLocalOcr = settings.forceLocalOcr;
   }
 
   @override
@@ -62,7 +61,25 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     html.window.location.href = newUri.toString();
   }
 
-  // ★【初心者向け】APIキー取得ガイドダイアログ
+  // ★【SNS拡散】Web Share呼び出し ＆ X投稿インテントフォールバック
+  Future<void> _shareApp() async {
+    try {
+      await Share.share(
+        AppConstants.shareAppText,
+        subject: 'パシャぽん - レシート家計簿サポート',
+      );
+    } catch (_) {
+      // Web Share非対応環境（PC等）向けのXポストフォールバック
+      final tweetUrl = 'https://twitter.com/intent/tweet?text=${Uri.encodeComponent(AppConstants.shareAppText)}';
+      html.window.open(tweetUrl, '_blank');
+    }
+  }
+
+  // ★【Buy Me a Coffee を開く】
+  void _openBuyMeACoffee() {
+    html.window.open(AppConstants.bmacUrl, '_blank');
+  }
+
   void _showApiKeyGuide() {
     showDialog(
       context: context,
@@ -155,7 +172,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   'Groq API Key',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
-                // ★初心者向けガイド導線
                 TextButton.icon(
                   style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                   icon: const Icon(Icons.help_outline, size: 14),
@@ -206,21 +222,64 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             const Divider(height: 28),
 
             // ==========================================
-            // 2. 【サポート・アプリ情報】
+            // 2. 【サポート・アプリ情報】（★縦並びで配置崩れ完全防止）
             // ==========================================
+            // ① 友達にパシャぽんを教える（SNS拡散）
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.campaign_outlined, color: Colors.teal),
+              title: const Text(
+                '友達にパシャぽんを教える',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: const Icon(Icons.share, size: 16),
+              onTap: _shareApp,
+            ),
+
+            // ② 開発者にコーヒーを奢る（Buy Me a Coffee）
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.coffee_outlined, color: Color(0xFFD35400)),
+              title: const Text(
+                '開発者にコーヒーを奢る',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: const Icon(Icons.open_in_new, size: 16),
+              onTap: _openBuyMeACoffee,
+            ),
+
+            // ③ 利用規約・プライバシーポリシー
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.description_outlined, color: Colors.teal),
-              title: const Text('利用規約・プライバシーポリシー', style: TextStyle(fontSize: 13)),
+              title: const Text(
+                '利用規約・プライバシーポリシー',
+                style: TextStyle(fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
               onTap: _showTermsDialog,
             ),
+
+            // ④ お問い合わせ・不具合報告
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.mail_outline, color: Colors.teal),
-              title: const Text('お問い合わせ・不具合報告', style: TextStyle(fontSize: 13)),
+              title: const Text(
+                'お問い合わせ・不具合報告',
+                style: TextStyle(fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               trailing: const Icon(Icons.open_in_new, size: 14),
               onTap: _openContactForm,
             ),
@@ -240,7 +299,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 ),
                 children: [
                   const SizedBox(height: 8),
-                  // ★モデル直接入力欄は撤廃！自動フォールバックが稼働している旨を案内
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
