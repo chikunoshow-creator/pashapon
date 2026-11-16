@@ -1,11 +1,11 @@
 {
-    "name": "pashapon",
-    "short_name": "pashapon",
+    "name": "パシャぽん",
+    "short_name": "パシャぽん",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFF8F2",
+    "theme_color": "#FFF8F2",
+    "description": "撮るだけ簡単レシート集計・家計簿PWA",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -61,7 +61,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     html.window.location.href = newUri.toString();
   }
 
-  // ★【SNS拡散】Web Share呼び出し ＆ X投稿インテントフォールバック
   Future<void> _shareApp() async {
     try {
       await Share.share(
@@ -69,13 +68,11 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         subject: 'パシャぽん - レシート家計簿サポート',
       );
     } catch (_) {
-      // Web Share非対応環境（PC等）向けのXポストフォールバック
       final tweetUrl = 'https://twitter.com/intent/tweet?text=${Uri.encodeComponent(AppConstants.shareAppText)}';
       html.window.open(tweetUrl, '_blank');
     }
   }
 
-  // ★【Buy Me a Coffee を開く】
   void _openBuyMeACoffee() {
     html.window.open(AppConstants.bmacUrl, '_blank');
   }
@@ -222,9 +219,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             const Divider(height: 28),
 
             // ==========================================
-            // 2. 【サポート・アプリ情報】（★縦並びで配置崩れ完全防止）
+            // 2. 【サポート・アプリ情報】
             // ==========================================
-            // ① 友達にパシャぽんを教える（SNS拡散）
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -238,8 +234,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               trailing: const Icon(Icons.share, size: 16),
               onTap: _shareApp,
             ),
-
-            // ② 開発者にコーヒーを奢る（Buy Me a Coffee）
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -253,8 +247,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               trailing: const Icon(Icons.open_in_new, size: 16),
               onTap: _openBuyMeACoffee,
             ),
-
-            // ③ 利用規約・プライバシーポリシー
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -268,8 +260,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
               onTap: _showTermsDialog,
             ),
-
-            // ④ お問い合わせ・不具合報告
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -287,7 +277,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             const Divider(height: 28),
 
             // ==========================================
-            // 3. 【詳細・メンテナンス】（折りたたみ）
+            // 3. 【詳細・メンテナンス】
             // ==========================================
             Theme(
               data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -340,11 +330,43 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                       onPressed: _isReloading ? null : _forceUpdateApp,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      'アプリバージョン: v${AppConstants.appVersion}',
-                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                  const SizedBox(height: 16),
+
+                  // ★【開発チームクレジット刻印（グランドフィナーレ）】
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'パシャぽん v${AppConstants.appVersion}',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '【 Development Credits 】\n'
+                          'Project Manager : Chiku\n'
+                          'Lead Director   : Aoi (Gemini)\n'
+                          'Lead Engineer   : Mio (Google AI Studio)\n'
+                          'Special Thanks  : Mugi (ChatGPT)',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 10,
+                            height: 1.5,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
